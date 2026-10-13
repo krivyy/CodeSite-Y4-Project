@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sign Up</title>
+    <link rel="stylesheet" href="static\style.css">
+</head>
+<body>
+
+    <header>
+        <h2>Code<span>Site</span></h2>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/login">Login</a>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Create an Account</h1>
+
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% endif %}
+
+        <form method="POST" action="/signup">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name" maxlength="100" required>
+
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" maxlength="255" required>
+
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password"
+                   minlength="12" maxlength="128" required>
+            
+            <label for="role">Account Type</label>
+            <select id="role" name="role" required>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+            </select>
+
+            <button type="submit">Sign Up</button>
+        </form>
+
+        <p>Already have an account? <a href="/login">Login here</a></p>
+    </main>
+
+</body>
+</html>
