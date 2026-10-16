@@ -12,9 +12,9 @@
     <nav class="navbar">
         <h2>Code<span>Site</span></h2>
         <div class="nav-links">
-            <a href="#dashboard">Dashboard</a>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
             <a href="#assignments">Assignments</a>
-            <a href="#problems">Problems</a>
+            <a href="{{ url_for('problems') }}">Problems</a>
             <a href="#progress">My Progress</a>
         </div>
 
@@ -60,7 +60,7 @@
             </section>
         </div>
     </main>
-
+    
     <script>
         const toggle = document.getElementById("theme-toggle");
 

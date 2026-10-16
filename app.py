@@ -116,13 +116,51 @@ def dashboard():
 
     return render_template("dashboard.html")
 
+@app.route("/problems")
+def problems():
+    if "user_id" not in session:
+        return redirect("/login")
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "Select id, title, description, difficulty FROM problems"
+        )
+        problems = cursor.fetchall()
+    finally:
+        cursor.close()
+        db.close()
+
+    return render_template("problems.html", problems=problems)
+
+@app.route("/problem/<int:problem_id>")
+def problem(problem_id):
+    if "user_id" not in session:
+        return redirect("/login")
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+
+    try:
+        cursor.execute(
+            "SELECT * FROM problems WHERE id = %s",
+            (problem_id,)
+        )
+        problem = cursor.fetchone()
+    finally:
+        cursor.close()
+        db.close()
+
+    if problem is None:
+        return "Problem not found", 404
+
+    return render_template("problem.html", problem=problem)
 
 # Logout
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
     return redirect("/")
-
 
 if __name__ == "__main__":
     app.run(debug=True)
