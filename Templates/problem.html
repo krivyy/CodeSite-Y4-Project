@@ -37,6 +37,23 @@
 
             <h2>Description</h2>
             <p>{{ problem.description }}</p>
+
+            {% if message %}
+                <p>{{ message }}</p>
+            {% endif %}
+
+            <h2>Submit Your Solution</h2>
+
+            <form action="/submit/{{ problem.id }}" method="POST">
+                <textarea
+                    name="source_code"
+                    rows="15"
+                    placeholder="Write your Python code here..."
+                    required
+                ></textarea>
+
+                <button type="submit">Submit Solution</button>
+            </form>
         </div>
     </main>
     

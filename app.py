@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, session
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
 import re
+from run import run_tests
 
 app = Flask(__name__)
 app.secret_key = "secret123"
@@ -155,6 +156,52 @@ def problem(problem_id):
         return "Problem not found", 404
 
     return render_template("problem.html", problem=problem)
+
+# Submit Solution
+@app.route("/submit/<int:problem_id>", methods=["POST"])
+def submit(problem_id):
+    if "user_id" not in session:
+        return redirect("/login")
+
+    source_code = request.form.get("source_code", "").strip()
+
+    if not source_code:
+        return "Please enter some code.", 400
+
+    passed, failed, status = run_tests(source_code)
+
+    if status == "Time Limit Exceeded":
+        message = "Time Limit Exceeded."
+    elif status != "Completed":
+        message = "Could not run the tests. Check your code syntax."
+    elif passed + failed == 0:
+        message = "No tests were run."
+    elif failed == 0:
+        message = f"Accepted! {passed}/{passed + failed} tests passed."
+    else:
+        message = f"Wrong Answer. {passed}/{passed + failed} tests passed."
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+
+    try:
+        cursor.execute(
+            "SELECT * FROM problems WHERE id = %s",
+            (problem_id,)
+        )
+        problem = cursor.fetchone()
+    finally:
+        cursor.close()
+        db.close()
+
+    if problem is None:
+        return "Problem not found", 404
+
+    return render_template(
+        "problem.html",
+        problem=problem,
+        message=message
+    )
 
 # Logout
 @app.route("/logout", methods=["POST"])
