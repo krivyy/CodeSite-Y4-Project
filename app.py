@@ -6,7 +6,7 @@ from run import run_tests
 import os
 
 app = Flask(__name__)
-app.secret_key = "secret123"
+app.secret_key = os.environ["SECRET_KEY"]
 
 
 # Database Connection
