@@ -45,12 +45,13 @@
             <h2>Submit Your Solution</h2>
 
             <form action="/submit/{{ problem.id }}" method="POST">
+                <div id="python-editor"></div>
                 <textarea
                     name="source_code"
-                    rows="15"
-                    placeholder="Write your Python code here..."
+                    id="source-code"
+                    hidden
                     required
-                ></textarea>
+                >{{ starter_code }}</textarea>
 
                 <button type="submit">Submit Solution</button>
             </form>
@@ -77,5 +78,28 @@
         });
     </script>
 
+<script type="module">
+    import { basicSetup } from "https://esm.sh/codemirror";
+    import { EditorView } from "https://esm.sh/@codemirror/view";
+    import { python } from "https://esm.sh/@codemirror/lang-python";
+
+    const textarea = document.getElementById("source-code");
+    const editorElement = document.getElementById("python-editor");
+
+    const editor = new EditorView({
+        doc: textarea.value,
+        parent: editorElement,
+        extensions: [
+            basicSetup,
+            python()
+        ]
+    });
+
+    const form = textarea.closest("form");
+
+    form.addEventListener("submit", function () {
+        textarea.value = editor.state.doc.toString();
+    });
+</script>
 </body>
 </html>

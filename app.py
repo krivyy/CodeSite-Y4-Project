@@ -125,8 +125,21 @@ def problems():
     cursor = db.cursor(dictionary=True)
     try:
         cursor.execute(
-            "Select id, title, description, difficulty FROM problems"
+            """
+            SELECT
+                problems.*,
+                COALESCE(MAX(submissions.passed_tests), 0) AS best_score,
+                COALESCE(MAX(submissions.passed_tests + submissions.failed_tests), 0) AS total_tests
+            FROM problems
+            LEFT JOIN submissions
+                ON problems.id = submissions.problem_id
+                AND submissions.user_id = %s
+            GROUP BY problems.id
+            ORDER BY problems.id
+            """,
+            (session["user_id"],)
         )
+
         problems = cursor.fetchall()
     finally:
         cursor.close()
@@ -155,7 +168,20 @@ def problem(problem_id):
     if problem is None:
         return "Problem not found", 404
 
-    return render_template("problem.html", problem=problem)
+    if problem_id == 1:
+        starter_code = "def add(a, b):\n    pass"
+    elif problem_id == 2:
+        starter_code = "def multiply(a, b):\n    pass"
+    elif problem_id == 3:
+        starter_code = "def largest(a, b):\n    pass"
+    else:
+        starter_code = ""
+
+    return render_template(
+        "problem.html",
+        problem=problem,
+        starter_code=starter_code
+    )
 
 # Submit Solution
 @app.route("/submit/<int:problem_id>", methods=["POST"])
@@ -167,20 +193,7 @@ def submit(problem_id):
 
     if not source_code:
         return "Please enter some code.", 400
-
-    passed, failed, status = run_tests(source_code)
-
-    if status == "Time Limit Exceeded":
-        message = "Time Limit Exceeded."
-    elif status != "Completed":
-        message = "Could not run the tests. Check your code syntax."
-    elif passed + failed == 0:
-        message = "No tests were run."
-    elif failed == 0:
-        message = f"Accepted! {passed}/{passed + failed} tests passed."
-    else:
-        message = f"Wrong Answer. {passed}/{passed + failed} tests passed."
-
+    
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
@@ -197,10 +210,63 @@ def submit(problem_id):
     if problem is None:
         return "Problem not found", 404
 
+    passed, failed, status = run_tests(problem_id, source_code)
+    
+    if status == "Time Limit Exceeded":
+        result_status = "Time Limit Exceeded"
+        message = "Time Limit Exceeded."
+
+    elif status == "Runtime Error":
+        result_status = "Runtime Error"
+        message = "Runtime Error. Your code crashed while running."
+
+    elif status != "Completed":
+        result_status = "Error"
+        message = "Could not run the tests. Check your code syntax."
+
+    elif passed + failed == 0:
+        result_status = "No Tests"
+        message = "No tests were run."
+
+    elif failed == 0:
+        result_status = "Accepted"
+        message = f"Accepted! {passed}/{passed + failed} tests passed."
+
+    else:
+        result_status = "Wrong Answer"
+        message = f"Wrong Answer. {passed}/{passed + failed} tests passed."
+
+    db = get_db()
+    cursor = db.cursor()
+
+    try:
+        cursor.execute(
+            """
+            INSERT INTO submissions
+            (user_id, problem_id, source_code, status, passed_tests, failed_tests)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (
+                session["user_id"],
+                problem_id,
+                source_code,
+                result_status,
+                passed,
+                failed
+            )
+        )
+
+        db.commit()
+
+    finally:
+        cursor.close()
+        db.close()
+        
     return render_template(
         "problem.html",
         problem=problem,
-        message=message
+        message=message,
+        starter_code=source_code
     )
 
 # Logout

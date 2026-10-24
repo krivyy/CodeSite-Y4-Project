@@ -2,10 +2,18 @@ from pathlib import Path
 import tempfile
 import subprocess
 
-
-def run_tests(source_code):
+def run_tests(problem_id, source_code):
     # Read the problem's test cases
-    test_file = Path(__file__).parent / "problems" / "testadd.py"
+    test_files = {
+    1: "testadd.py",
+    2: "testmultiply.py",
+    3: "testlargest.py"
+    }
+
+    if problem_id not in test_files:
+        return 0, 0, "Error"
+
+    test_file = Path(__file__).parent / "problems" / test_files[problem_id]
     test_code = test_file.read_text(encoding="utf-8")
 
     # Combine the student's solution and tests
@@ -74,5 +82,5 @@ def run_tests(source_code):
 if __name__ == "__main__":
     solution = "def add(a, b):\n    if a == -2:\n        return 1\n    return a + b"
     # solution = "def add(a, b):\n    return a - b"
-    results = run_tests(solution)
+    results = run_tests(1, solution)
     print("Results returned:", results)

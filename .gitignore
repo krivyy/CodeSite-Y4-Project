@@ -2,3 +2,4 @@ data.env
 Ideas.txt
 notes.txt
 diary.txt
+*.pyc

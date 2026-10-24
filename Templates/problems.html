@@ -32,12 +32,20 @@
         <p>Choose a problem to practise your programming skills.</p>
         <div class="dashboard-grid">
             {% for problem in problems %}
-                <div class="panel">
-                    <h2>{{ problem.title }}</h2>
-                    <p>Difficulty: {{ problem.difficulty }}</p>
-                    <a href="{{ url_for('problem', problem_id=problem.id) }}">
-                        View Problem
-                    </a>
+                <div class="panel problem-card">
+                    <div class="problem-info">
+                        <h2>{{ problem.title }}</h2>
+                        <p>Difficulty: {{ problem.difficulty }}</p>
+                        <a href="{{ url_for('problem', problem_id=problem.id) }}">
+                            View Problem
+                        </a>
+                    </div>
+                    <div class="problem-score">
+                        <span>Completed</span>
+                        <strong>
+                            {{ problem.best_score }}/{{ problem.total_tests if problem.total_tests > 0 else 3 }}
+                        </strong>
+                    </div>
                 </div>
             {% else %}
                 <p>No problems available yet.</p>
