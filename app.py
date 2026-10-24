@@ -3,6 +3,7 @@ import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
 import re
 from run import run_tests
+import os
 
 app = Flask(__name__)
 app.secret_key = "secret123"
@@ -11,10 +12,12 @@ app.secret_key = "secret123"
 # Database Connection
 def get_db():
     return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="root",
-        database="codesite"
+        host=os.environ["MYSQLHOST"],
+        user=os.environ["MYSQLUSER"],
+        password=os.environ["MYSQLPASSWORD"],
+        database=os.environ["MYSQLDATABASE"],
+        port=int(os.environ.get("MYSQLPORT", 3306)),
+        connection_timeout=10
     )
 
 
