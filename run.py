@@ -22,16 +22,23 @@ def run_tests(problem_id, source_code):
 
 passed = 0
 failed = 0
+runtime_error = False
 
 for name, function in list(globals().items()):
     if name.startswith("test_") and callable(function):
         try:
             function()
             passed += 1
-        except Exception:
+        except AssertionError:
             failed += 1
+        except Exception:
+            runtime_error = True
+            break
 
-print(f"CODESITE_RESULT:{passed}:{failed}")
+if runtime_error:
+    print("CODESITE_RESULT:0:0:RUNTIME_ERROR")
+else:
+    print(f"CODESITE_RESULT:{passed}:{failed}:COMPLETED")
 """
 
     # Judge0 connection
@@ -47,7 +54,10 @@ print(f"CODESITE_RESULT:{passed}:{failed}")
 
     payload = {
         "language_id": 100,
-        "source_code": combined_code
+        "source_code": combined_code,
+        "cpu_time_limit": 2,
+        "wall_time_limit": 5,
+        "memory_limit": 128000
     }
 
     try:
@@ -82,7 +92,12 @@ print(f"CODESITE_RESULT:{passed}:{failed}")
 
     for line in output.splitlines():
         if line.startswith("CODESITE_RESULT:"):
-            _, passed, failed = line.split(":")
-            return int(passed), int(failed), "Completed"
+            parts = line.split(":")
+
+            if parts[3] == "RUNTIME_ERROR":
+                return 0, 0, "Runtime Error"
+
+            if parts[3] == "COMPLETED":
+                return int(parts[1]), int(parts[2]), "Completed"
 
     return 0, 0, "Error"

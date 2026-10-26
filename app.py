@@ -4,9 +4,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import re
 from run import run_tests
 import os
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
 app.secret_key = os.environ["SECRET_KEY"]
+app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
+csrf = CSRFProtect(app)
 
 
 # Database Connection
@@ -194,6 +197,9 @@ def submit(problem_id):
 
     source_code = request.form.get("source_code", "").strip()
 
+    if len(source_code) > 10000:
+        return "Code is too long.", 400
+
     if not source_code:
         return "Please enter some code.", 400
     
@@ -212,6 +218,30 @@ def submit(problem_id):
 
     if problem is None:
         return "Problem not found", 404
+
+    db = get_db()
+    cursor = db.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT id
+            FROM submissions
+            WHERE user_id = %s
+              AND submitted_at > NOW() - INTERVAL 5 SECOND
+            LIMIT 1
+            """,
+            (session["user_id"],)
+        )
+
+        recent_submission = cursor.fetchone()
+
+    finally:
+        cursor.close()
+        db.close()
+
+    if recent_submission:
+        return "Please wait 5 seconds before submitting again.", 429
 
     passed, failed, status = run_tests(problem_id, source_code)
     
@@ -279,4 +309,4 @@ def logout():
     return redirect("/")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)

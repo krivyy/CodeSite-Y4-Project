@@ -23,6 +23,7 @@
         {% endif %}
 
         <form method="POST" action="/signup">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label for="name">Full Name</label>
             <input type="text" id="name" name="name" maxlength="100" required>
 

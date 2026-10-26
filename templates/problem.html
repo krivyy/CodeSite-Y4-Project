@@ -23,6 +23,7 @@
             </button>
 
             <form action="{{ url_for('logout') }}" method="POST" class="logout-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="logout-button" type="submit">Logout</button>
             </form>
         </div>
@@ -44,8 +45,8 @@
 
             <h2>Submit Your Solution</h2>
 
-            <form action="/submit/{{ problem.id }}" method="POST">
-                <div id="python-editor"></div>
+            <form action="{{ url_for('submit', problem_id=problem.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <textarea
                     name="source_code"
                     id="source-code"
