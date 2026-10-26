@@ -47,6 +47,7 @@
 
             <form action="{{ url_for('submit', problem_id=problem.id) }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div id="python-editor"></div>
                 <textarea
                     name="source_code"
                     id="source-code"
