@@ -1,86 +1,88 @@
+import os
 from pathlib import Path
-import tempfile
-import subprocess
+import requests
+
 
 def run_tests(problem_id, source_code):
-    # Read the problem's test cases
+
     test_files = {
-    1: "testadd.py",
-    2: "testmultiply.py",
-    3: "testlargest.py"
+        1: "testadd.py",
+        2: "testmultiply.py",
+        3: "testlargest.py"
     }
 
     if problem_id not in test_files:
         return 0, 0, "Error"
 
-    test_file = Path(__file__).parent / "problems" / test_files[problem_id]
-    test_code = test_file.read_text(encoding="utf-8")
+    test_path = Path(__file__).parent / "problems" / test_files[problem_id]
+    test_code = test_path.read_text(encoding="utf-8")
 
-    # Combine the student's solution and tests
-    combined_code = source_code + "\n\n" + test_code
+    # Combine the student's code and tests
+    combined_code = source_code + "\n\n" + test_code + """
 
-    # Create a temporary folder for this submission
-    with tempfile.TemporaryDirectory() as folder:
-        test_path = Path(folder) / "test_submission.py"
-        test_path.write_text(combined_code, encoding="utf-8")
+passed = 0
+failed = 0
 
-        # Run the tests inside Docker
-        command = [
-            "docker", "run", "--rm",
-            "--network", "none",
-            "--memory", "128m",
-            "--cpus", "0.5",
-            "--pids-limit", "64",
-            "--read-only",
-            "--tmpfs", "/tmp",
-            "--cap-drop", "ALL",
-            "--security-opt", "no-new-privileges",
-            "-v", f"{folder}:/runner:ro",
-            "-w", "/runner",
-            "codesite-runner",
-            "python", "-B", "-m", "pytest",
-            "-p", "no:cacheprovider",
-            "-v", "test_submission.py"
-        ]
-
+for name, function in list(globals().items()):
+    if name.startswith("test_") and callable(function):
         try:
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            summary = ""
-            for line in result.stdout.splitlines():
-                if " in " in line and ("passed" in line or "failed" in line):
-                    summary = line
+            function()
+            passed += 1
+        except Exception:
+            failed += 1
 
-            if not summary:
-                return 0, 0, "Error"
-            
-            print("SUMMARY:", summary)
-            split = summary.replace(",", "").split()
-            print(split)
-            print(result.stdout)
-            print(result.stderr)
-            if "passed" in split:
-                passed = int(split[split.index("passed") - 1])
-            else:
-                passed = 0
+print(f"CODESITE_RESULT:{passed}:{failed}")
+"""
 
-            if "failed" in split:
-                failed = int(split[split.index("failed") - 1])
-            else:
-                failed = 0
+    # Judge0 connection
+    api_url = os.environ["JUDGE0_API_URL"].rstrip("/")
+    api_host = os.environ["JUDGE0_API_HOST"]
+    api_key = os.environ["JUDGE0_API_KEY"]
 
-            return passed, failed, "Completed"
+    headers = {
+        "x-rapidapi-key": api_key,
+        "x-rapidapi-host": api_host,
+        "Content-Type": "application/json"
+    }
 
-        except subprocess.TimeoutExpired:
-            print("Time limit exceeded.")
-            return 0, 0, "Time Limit Exceeded"
+    payload = {
+        "language_id": 100,
+        "source_code": combined_code
+    }
 
-if __name__ == "__main__":
-    solution = "def add(a, b):\n    if a == -2:\n        return 1\n    return a + b"
-    # solution = "def add(a, b):\n    return a - b"
-    results = run_tests(1, solution)
-    print("Results returned:", results)
+    try:
+        response = requests.post(
+            f"{api_url}/submissions",
+            headers=headers,
+            json=payload,
+            params={
+                "base64_encoded": "false",
+                "wait": "true"
+            },
+            timeout=30
+        )
+
+        response.raise_for_status()
+        result = response.json()
+
+    except requests.RequestException:
+        return 0, 0, "Error"
+
+    # Check Judge0 result
+    status = result.get("status", {}).get("description")
+
+    if status == "Time Limit Exceeded":
+        return 0, 0, "Time Limit Exceeded"
+
+    if status != "Accepted":
+        return 0, 0, "Runtime Error"
+
+    # Read passed and failed tests
+    output = result.get("stdout") or ""
+
+    for line in output.splitlines():
+        if line.startswith("CODESITE_RESULT:"):
+            _, passed, failed = line.split(":")
+            return int(passed), int(failed), "Completed"
+
+    return 0, 0, "Error"
