@@ -197,7 +197,7 @@ def submit(problem_id):
 
     source_code = request.form.get("source_code", "").strip()
 
-    if len(source_code) > 10000:
+    if len(source_code) > 300:
         return "Code is too long.", 400
 
     if not source_code:
