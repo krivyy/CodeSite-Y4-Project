@@ -1,5 +1,11 @@
-data.env
 Ideas.txt
 notes.txt
 diary.txt
 *.pyc
+*.sql
+test_codesite_runner.py
+.env
+.env.*
+!.env.example
+data.env
+__pycache__/
