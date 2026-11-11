@@ -41,50 +41,31 @@ else:
     print(f"CODESITE_RESULT:{passed}:{failed}:COMPLETED")
 """
 
-    # Judge0 connection
-    api_url = os.environ["JUDGE0_API_URL"].rstrip("/")
-    api_host = os.environ["JUDGE0_API_HOST"]
-    api_key = os.environ["JUDGE0_API_KEY"]
-
-    headers = {
-        "x-rapidapi-key": api_key,
-        "x-rapidapi-host": api_host,
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "language_id": 100,
-        "source_code": combined_code,
-        "cpu_time_limit": 2,
-        "wall_time_limit": 5,
-        "memory_limit": 128000
-    }
+    # Runner connection
+    runner_url = os.environ["RUNNER_URL"].rstrip("/")
+    runner_token = os.environ["RUNNER_TOKEN"]
 
     try:
         response = requests.post(
-            f"{api_url}/submissions",
-            headers=headers,
-            json=payload,
-            params={
-                "base64_encoded": "false",
-                "wait": "true"
-            },
+            f"{runner_url}/run",
+            headers={"X-Runner-Token": runner_token},
+            json={"code": combined_code},
             timeout=30
         )
 
         response.raise_for_status()
         result = response.json()
 
-    except requests.RequestException:
+    except (requests.RequestException, ValueError):
         return 0, 0, "Error"
 
-    # Check Judge0 result
-    status = result.get("status", {}).get("description")
+    # Check the runner's result
+    status = result.get("status")
 
-    if status == "Time Limit Exceeded":
+    if status == "time_limit":
         return 0, 0, "Time Limit Exceeded"
 
-    if status != "Accepted":
+    if status != "ok" or result.get("exit_code") != 0:
         return 0, 0, "Runtime Error"
 
     # Read passed and failed tests
