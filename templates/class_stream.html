@@ -1,0 +1,36 @@
+{% extends "class_base.html" %}
+ 
+{% block content %}
+    {% if is_teacher %}
+        <section class="panel">
+            <h2>Class code</h2>
+            <p class="class-code">{{ class_info.join_code }}</p>
+            <p>Share this code with students so they can join.</p>
+        </section>
+ 
+        <section class="panel recent-panel">
+            <h2>Recent activity</h2>
+            {% if recent_submissions %}
+                <table class="activity">
+                    <tr><th>Student</th><th>Problem</th><th>Result</th><th>Score</th><th>When</th></tr>
+                    {% for submission in recent_submissions %}
+                        <tr>
+                            <td>{{ submission.name }}</td>
+                            <td>{{ submission.title }}</td>
+                            <td>{{ submission.status }}</td>
+                            <td>{{ submission.passed_tests }}/{{ submission.passed_tests + submission.failed_tests }}</td>
+                            <td>{{ submission.submitted_at.strftime("%d %b %H:%M") }}</td>
+                        </tr>
+                    {% endfor %}
+                </table>
+            {% else %}
+                <p>No submissions from this class yet</p>
+            {% endif %}
+        </section>
+    {% else %}
+        <section class="panel">
+            <h2>Stream</h2>
+            <p>No announcements yet</p>
+        </section>
+    {% endif %}
+{% endblock %}

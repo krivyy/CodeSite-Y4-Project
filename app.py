@@ -5,6 +5,7 @@ import re
 from run import run_tests
 import os
 from flask_wtf.csrf import CSRFProtect
+import secrets
 
 app = Flask(__name__)
 app.secret_key = os.environ["SECRET_KEY"]
@@ -48,7 +49,7 @@ def signup_post():
  
     if role not in ["student", "teacher"]:
         return render_template("signup.html", error="Invalid account type.")
- 
+    
     if not name or not email or not password:
         return render_template("signup.html", error="Please fill in all fields.")
  
@@ -106,13 +107,292 @@ def login_post():
     return render_template(
         "login.html", error="Email or password is incorrect."
     )
+
 # Dashboard
 @app.get("/dashboard")
 def dashboard():
     if "user_id" not in session:
         return redirect("/login")
  
-    return render_template("dashboard.html")
+    if session["role"] == "teacher":
+        return teacher_dashboard()
+
+    return student_dashboard()
+
+
+def student_dashboard(error=None):
+    with UseDatabase(db_config) as cursor:
+        cursor.execute(
+            """
+            SELECT classes.id, classes.name, users.name AS teacher_name
+            FROM class_members
+            JOIN classes ON classes.id = class_members.class_id
+            JOIN users ON users.id = classes.teacher_id
+            WHERE class_members.student_id = %s
+            ORDER BY classes.name
+            """,
+            (session["user_id"],)
+        )
+        my_classes = rows_as_dicts(cursor)
+ 
+        cursor.execute("SELECT COUNT(*) FROM problems")
+        total_problems = cursor.fetchall()[0][0]
+ 
+        cursor.execute(
+            """
+            SELECT COUNT(DISTINCT problem_id)
+            FROM submissions
+            WHERE user_id = %s AND status = 'Accepted'
+            """,
+            (session["user_id"],)
+        )
+        solved_problems = cursor.fetchall()[0][0]
+ 
+    return render_template(
+        "student_dashboard.html",
+        error=error,
+        my_classes=my_classes,
+        total_problems=total_problems,
+        solved_problems=solved_problems
+    )
+ 
+ 
+def teacher_dashboard():
+    with UseDatabase(db_config) as cursor:
+        cursor.execute(
+            """
+            SELECT classes.id, classes.name, classes.join_code,
+                   COUNT(class_members.student_id) AS students
+            FROM classes
+            LEFT JOIN class_members ON class_members.class_id = classes.id
+            WHERE classes.teacher_id = %s
+            GROUP BY classes.id
+            ORDER BY classes.name
+            """,
+            (session["user_id"],)
+        )
+        my_classes = rows_as_dicts(cursor)
+ 
+    return render_template("teacher_dashboard.html", my_classes=my_classes)
+ 
+ 
+# Classes
+JOIN_CODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+ 
+ 
+@app.post("/classes")
+def create_class():
+    if session.get("role") != "teacher":
+        return redirect("/login")
+ 
+    name = request.form.get("name", "").strip()
+ 
+    if not name or len(name) > 100:
+        return redirect("/dashboard")
+ 
+    with UseDatabase(db_config) as cursor:
+        # Pick a random code that no other class is using
+        while True:
+            join_code = "".join(secrets.choice(JOIN_CODE_CHARACTERS) for _ in range(6))
+            cursor.execute("SELECT id FROM classes WHERE join_code = %s", (join_code,))
+            if not cursor.fetchall():
+                break
+ 
+        cursor.execute(
+            "INSERT INTO classes (name, join_code, teacher_id) VALUES (%s, %s, %s)",
+            (name, join_code, session["user_id"])
+        )
+ 
+    return redirect("/dashboard")
+ 
+ 
+@app.post("/classes/join")
+def join_class():
+    if session.get("role") != "student":
+        return redirect("/login")
+ 
+    join_code = request.form.get("join_code", "").strip().upper()
+ 
+    with UseDatabase(db_config) as cursor:
+        cursor.execute("SELECT id FROM classes WHERE join_code = %s", (join_code,))
+        rows = cursor.fetchall()
+ 
+        if rows:
+            # IGNORE: joining a class you're already in does nothing
+            cursor.execute(
+                "INSERT IGNORE INTO class_members (class_id, student_id) VALUES (%s, %s)",
+                (rows[0][0], session["user_id"])
+            )
+ 
+    if not rows:
+        return student_dashboard(error="No class found with that code.")
+ 
+    return redirect("/dashboard")
+ 
+ 
+def get_class(class_id):
+    # Returns (class_info, is_teacher), or (None, False) if this user isn't
+    # the class's teacher or one of its students.
+    with UseDatabase(db_config) as cursor:
+        cursor.execute(
+            """
+            SELECT classes.id, classes.name, classes.join_code, classes.teacher_id,
+                   users.name AS teacher_name
+            FROM classes
+            JOIN users ON users.id = classes.teacher_id
+            WHERE classes.id = %s
+            """,
+            (class_id,)
+        )
+        rows = rows_as_dicts(cursor)
+ 
+        cursor.execute(
+            "SELECT student_id FROM class_members WHERE class_id = %s AND student_id = %s",
+            (class_id, session["user_id"])
+        )
+        is_student = bool(cursor.fetchall())
+ 
+    is_teacher = bool(rows) and rows[0]["teacher_id"] == session["user_id"]
+ 
+    if not (is_teacher or is_student):
+        return None, False
+ 
+    return rows[0], is_teacher
+ 
+ 
+def get_students(class_id):
+    with UseDatabase(db_config) as cursor:
+        cursor.execute(
+            """
+            SELECT users.id, users.name, users.email, class_members.joined_at
+            FROM class_members
+            JOIN users ON users.id = class_members.student_id
+            WHERE class_members.class_id = %s
+            ORDER BY users.name
+            """,
+            (class_id,)
+        )
+        return rows_as_dicts(cursor)
+ 
+ 
+# Stream tab
+@app.get("/class/<int:class_id>")
+def class_stream(class_id):
+    if "user_id" not in session:
+        return redirect("/login")
+ 
+    class_info, is_teacher = get_class(class_id)
+    if not class_info:
+        return "Class not found", 404
+ 
+    recent_submissions = []
+    if is_teacher:
+        with UseDatabase(db_config) as cursor:
+            cursor.execute(
+                """
+                SELECT users.name, problems.title, submissions.status,
+                       submissions.passed_tests, submissions.failed_tests,
+                       submissions.submitted_at
+                FROM submissions
+                JOIN users ON users.id = submissions.user_id
+                JOIN problems ON problems.id = submissions.problem_id
+                JOIN class_members ON class_members.student_id = submissions.user_id
+                WHERE class_members.class_id = %s
+                ORDER BY submissions.submitted_at DESC
+                LIMIT 10
+                """,
+                (class_id,)
+            )
+            recent_submissions = rows_as_dicts(cursor)
+ 
+    return render_template(
+        "class_stream.html",
+        class_info=class_info,
+        is_teacher=is_teacher,
+        tab="stream",
+        recent_submissions=recent_submissions
+    )
+ 
+ 
+# Classwork tab
+@app.get("/class/<int:class_id>/classwork")
+def class_classwork(class_id):
+    if "user_id" not in session:
+        return redirect("/login")
+ 
+    class_info, is_teacher = get_class(class_id)
+    if not class_info:
+        return "Class not found", 404
+ 
+    return render_template(
+        "class_classwork.html",
+        class_info=class_info,
+        is_teacher=is_teacher,
+        tab="classwork"
+    )
+ 
+ 
+# People tab
+@app.get("/class/<int:class_id>/people")
+def class_people(class_id):
+    if "user_id" not in session:
+        return redirect("/login")
+ 
+    class_info, is_teacher = get_class(class_id)
+    if not class_info:
+        return "Class not found", 404
+ 
+    return render_template(
+        "class_people.html",
+        class_info=class_info,
+        is_teacher=is_teacher,
+        tab="people",
+        students=get_students(class_id)
+    )
+ 
+ 
+# Grades tab (teacher only)
+@app.get("/class/<int:class_id>/grades")
+def class_grades(class_id):
+    if "user_id" not in session:
+        return redirect("/login")
+ 
+    class_info, is_teacher = get_class(class_id)
+    if not class_info or not is_teacher:
+        return "Class not found", 404
+ 
+    students = get_students(class_id)
+ 
+    with UseDatabase(db_config) as cursor:
+        cursor.execute("SELECT id, title FROM problems ORDER BY id")
+        problems = rows_as_dicts(cursor)
+ 
+        # Each student's best score on each problem
+        cursor.execute(
+            """
+            SELECT submissions.user_id, submissions.problem_id,
+                   MAX(submissions.passed_tests) AS best,
+                   MAX(submissions.passed_tests + submissions.failed_tests) AS total
+            FROM submissions
+            JOIN class_members ON class_members.student_id = submissions.user_id
+            WHERE class_members.class_id = %s
+            GROUP BY submissions.user_id, submissions.problem_id
+            """,
+            (class_id,)
+        )
+        grades = {}
+        for row in rows_as_dicts(cursor):
+            grades.setdefault(row["user_id"], {})[row["problem_id"]] = row
+ 
+    return render_template(
+        "class_grades.html",
+        class_info=class_info,
+        is_teacher=is_teacher,
+        tab="grades",
+        students=students,
+        problems=problems,
+        grades=grades
+    )
 
 # Problems 
 @app.get("/problems")

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ class_info.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+</head>
+ 
+<body>
+    <nav class="navbar">
+        <h2>Code<span>Site</span></h2>
+        <div class="nav-links">
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="#assignments">Assignments</a>
+            <a href="{{ url_for('problems') }}">Problems</a>
+            <a href="#progress">My Progress</a>
+        </div>
+ 
+        <div>
+            <button class="theme-button" id="theme-toggle" type="button">
+                Dark mode
+            </button>
+ 
+            <form action="{{ url_for('logout') }}" method="POST" class="logout-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="logout-button" type="submit">Logout</button>
+            </form>
+        </div>
+    </nav>
+ 
+    <main>
+        <a href="{{ url_for('dashboard') }}">&larr; Back to dashboard</a>
+ 
+        <section class="class-banner">
+            <h1>{{ class_info.name }}</h1>
+            <p>{{ class_info.teacher_name }}</p>
+        </section>
+ 
+        <nav class="class-tabs">
+            <a href="{{ url_for('class_stream', class_id=class_info.id) }}" class="{{ 'active' if tab == 'stream' }}">Stream</a>
+            <a href="{{ url_for('class_classwork', class_id=class_info.id) }}" class="{{ 'active' if tab == 'classwork' }}">Classwork</a>
+            <a href="{{ url_for('class_people', class_id=class_info.id) }}" class="{{ 'active' if tab == 'people' }}">People</a>
+            {% if is_teacher %}
+                <a href="{{ url_for('class_grades', class_id=class_info.id) }}" class="{{ 'active' if tab == 'grades' }}">Grades</a>
+            {% endif %}
+        </nav>
+ 
+        {% block content %}{% endblock %}
+    </main>
+ 
+    <script>
+        const toggle = document.getElementById("theme-toggle");
+ 
+        function setTheme(theme) {
+            document.documentElement.setAttribute("data-theme", theme);
+            localStorage.setItem("codesite-theme", theme);
+ 
+            toggle.textContent = theme === "dark" ? "Light mode" : "Dark mode";
+        }
+ 
+        setTheme(localStorage.getItem("codesite-theme") || "light");
+ 
+        toggle.addEventListener("click", function () {
+            const currentTheme =
+                document.documentElement.getAttribute("data-theme");
+ 
+            setTheme(currentTheme === "dark" ? "light" : "dark");
+        });
+    </script>
+</body>
+</html>

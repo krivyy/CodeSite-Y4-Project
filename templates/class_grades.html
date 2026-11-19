@@ -1,0 +1,28 @@
+{% extends "class_base.html" %}
+ 
+{% block content %}
+    <section class="panel">
+        <h2>Grades</h2>
+        {% if students %}
+            <table class="activity">
+                <tr>
+                    <th>Student</th>
+                    {% for problem in problems %}
+                        <th>{{ problem.title }}</th>
+                    {% endfor %}
+                </tr>
+                {% for student in students %}
+                    <tr>
+                        <td>{{ student.name }}</td>
+                        {% for problem in problems %}
+                            {% set grade = grades.get(student.id, {}).get(problem.id) %}
+                            <td>{{ grade.best ~ "/" ~ grade.total if grade else "-" }}</td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p>No students yet</p>
+        {% endif %}
+    </section>
+{% endblock %}

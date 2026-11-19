@@ -98,10 +98,6 @@ h1 {
     margin-bottom: 6px;
 }
 
-.welcome {
-    margin: 24px 0;
-}
-
 .dashboard-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -174,4 +170,125 @@ h1 {
     main {
         padding: 0 16px;
     }
+}
+
+.recent-panel {
+    margin-top: 20px;
+}
+
+.activity {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.activity th,
+.activity td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.inline-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.inline-form input[type="text"] {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background-color: var(--surface);
+    color: var(--text);
+}
+
+.inline-form button {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 5px;
+    background-color: var(--accent);
+    color: var(--surface);
+    cursor: pointer;
+}
+
+.error {
+    color: #c62828;
+}
+ 
+.class-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+ 
+.class-card {
+    display: block;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 6px solid var(--accent);
+    border-radius: 6px;
+    color: var(--text);
+    text-decoration: none;
+}
+ 
+.class-card:hover {
+    border-color: var(--accent);
+}
+ 
+.class-card h3 {
+    margin: 0 0 6px;
+}
+ 
+.class-card p {
+    margin: 4px 0;
+    color: var(--muted);
+}
+ 
+.class-banner {
+    margin: 16px 0 20px;
+    padding: 24px;
+    background: var(--accent);
+    color: var(--surface);
+    border-radius: 8px;
+}
+ 
+.class-banner h1,
+.class-banner p {
+    margin: 4px 0;
+    color: var(--surface);
+}
+
+
+.class-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.class-tabs a {
+    padding: 10px 16px;
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 3px solid transparent;
+}
+
+.class-tabs a:hover {
+    color: var(--text);
+}
+
+.class-tabs a.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.class-code {
+    font-size: 28px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    margin: 8px 0;
+    color: var(--accent);
 }
